@@ -36,7 +36,9 @@ jobs:
       - name: Ensure D1 database
         run: node scripts/ci-d1.mjs
       - name: Apply D1 migrations
-        run: npx wrangler d1 migrations apply scrabbleish --remote --yes
+        # Wrangler 4.158 removed --yes: it skips the confirmation prompt when it
+        # detects CI, and still takes a backup before applying.
+        run: npx wrangler d1 migrations apply scrabbleish --remote
       # wrangler is pinned in package.json (4.158.0). 4.165.x queries the newer
       # worker-scoped subdomain API after upload, which answers 10007 on this
       # account even though the deploy itself succeeded, so the action fails.
