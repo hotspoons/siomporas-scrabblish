@@ -1,0 +1,17 @@
+Word lists
+==========
+
+dict.txt is the ENABLE word list (Enhanced North American Benchmark Lexicon,
+172,823 words), which its authors released into the public domain. This copy
+comes from the dolph/dictionary repository (enable1.txt), filtered to the
+168,551 entries that are 2-15 letters and playable on a 15x15 board.
+
+popular.txt is the common subset of ENABLE, filtered against Wiktionary's word
+frequency lists by the same repository (25,322 words). It ships alongside
+ENABLE so the robot's easier levels can prefer everyday words.
+
+No changes are made to the words themselves beyond upper-casing and sorting.
+
+Sources:
+  https://github.com/dolph/dictionary
+  https://wordlist.sourceforge.net/ (original ENABLE project, archived)

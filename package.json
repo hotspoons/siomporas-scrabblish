@@ -13,8 +13,10 @@
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
     "test": "node --test src/shared/*.test.ts src/worker/*.test.ts",
+    "dict": "node scripts/build-dict.mjs",
     "icons": "node scripts/icons.mjs",
     "m0": "node scripts/m0-check.mjs",
+    "m1": "node scripts/m1-check.mjs",
     "migrate:local": "wrangler d1 migrations apply scrabbleish --local",
     "migrate:remote": "wrangler d1 migrations apply scrabbleish --remote",
     "deploy": "npm run build && wrangler deploy"

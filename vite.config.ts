@@ -26,9 +26,9 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        // The dictionary is a compact binary; precaching it is what makes the
-        // robot playable with the phone in airplane mode.
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2,dawg}'],
+        // The dictionary is plain text; precaching it is what makes the robot
+        // playable with the phone in airplane mode.
+        globPatterns: ['**/*.{js,css,html,png,svg,woff2,txt}'],
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024
       },

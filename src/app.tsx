@@ -1,7 +1,12 @@
 import { useState } from 'preact/hooks'
+import { DebugBoard } from './ui/DebugBoard.tsx'
+
+type Tab = 'home' | 'rules' | 'board'
 
 export function App() {
-  const [tab, setTab] = useState<'home' | 'rules'>('home')
+  const [tab, setTab] = useState<Tab>('home')
+  if (tab === 'board') return <DebugBoard onHome={() => setTab('home')} />
+
   return (
     <div class="app">
       {tab === 'home' ? (
@@ -16,6 +21,9 @@ export function App() {
             </button>
             <button class="btn big" onClick={() => setTab('rules')}>
               Rules
+            </button>
+            <button class="btn subtle" onClick={() => setTab('board')}>
+              Board lab
             </button>
           </div>
         </main>
