@@ -1,0 +1,30 @@
+{
+  // One Worker: the game API, the MCP endpoint, and the built static app.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "siomporas-scrabblish",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "html_handling": "auto-trailing-slash",
+    // API and MCP requests belong to the Worker. Everything else is served
+    // straight from the asset store, which is faster and cheaper.
+    "run_worker_first": ["/api/*", "/mcp/*"]
+  },
+  // The placeholder database_id is replaced by CI on deploy with the id of the
+  // real D1 database (see .github/workflows/deploy.yml). Local development
+  // uses `wrangler d1 ... --local` and never looks at it.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "scrabbleish",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "routes": [{ "pattern": "scrabbleish.siomporas.com", "custom_domain": true }],
+  "workers_dev": false,
+  "observability": { "enabled": true }
+}

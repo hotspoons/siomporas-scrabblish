@@ -1,0 +1,41 @@
+{
+  "name": "siomporas-scrabblish",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A calm family word game. Installs once, plays offline, no ads, no accounts.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/shared/*.test.ts src/worker/*.test.ts",
+    "dict": "node scripts/build-dict.mjs",
+    "icons": "node scripts/icons.mjs",
+    "offline": "node scripts/offline-check.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "layout": "node scripts/layout-probe.mjs",
+    "human": "node scripts/human-check.mjs",
+    "mcp": "node scripts/mcp-check.mjs",
+    "verify": "node scripts/verify-all.mjs",
+    "migrate:local": "wrangler d1 migrations apply scrabbleish --local",
+    "migrate:remote": "wrangler d1 migrations apply scrabbleish --remote --yes",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.3.1",
+    "preact": "^10.27.2"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "@types/node": "^24.19.2",
+    "playwright": "^1.61.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vite-plugin-pwa": "^1.3.0",
+    "wrangler": "4.158.0"
+  }
+}
