@@ -288,7 +288,7 @@ try {
   const finalLine = await page.locator('.play-final').innerText()
   const heading = await page.locator('.play.over h1').innerText()
   console.log(`game over after ${turns - 1} human turns: ${heading} — ${finalLine} (last live score ${lastScore})`)
-  note(/You \d+ · Robot \d+/.test(finalLine), `final scores shown: ${finalLine}`)
+  note(/You -?\d+ · Robot -?\d+/.test(finalLine), `final scores shown: ${finalLine}`)
   await page.screenshot({path: `${out}/m2-game-over.png`})
 
   // --- 4. the robot still moves with the network off ----------------------
