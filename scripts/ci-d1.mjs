@@ -7,10 +7,30 @@ import { readFileSync, writeFileSync } from 'node:fs'
 
 const run = (args) => execFileSync('npx', ['wrangler', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] })
 
+// `wrangler d1 create` has no --json flag: it prints a JSON config snippet and
+// then an interactive prompt ("Would you like Wrangler to add it on your
+// behalf?"). Slice out just the first balanced JSON value and ignore the rest.
 function parseJson(text) {
   const start = text.indexOf('[') >= 0 && (text.indexOf('[') < text.indexOf('{') || text.indexOf('{') < 0) ? text.indexOf('[') : text.indexOf('{')
   if (start < 0) throw new Error('no JSON in wrangler output')
-  return JSON.parse(text.slice(start))
+  const open = text[start]
+  const close = open === '[' ? ']' : '}'
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === open) depth++
+    else if (ch === close && --depth === 0) return JSON.parse(text.slice(start, i + 1))
+  }
+  throw new Error('unterminated JSON in wrangler output')
 }
 
 let databases = []
