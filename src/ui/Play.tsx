@@ -21,6 +21,7 @@ import {
   type LocalGame,
 } from '../shared/local-game.ts'
 import { mulberry32, shuffle, type Tile } from '../shared/tiles.ts'
+import { startTileGesture, tileClicksSuppressed } from './tile-drag.ts'
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -31,6 +32,13 @@ interface Props {
   fast?: boolean
   onHome: () => void
   onNewGame: () => void
+}
+
+const cellFrom = (el: HTMLElement): { row: number; col: number } | null => {
+  const raw = el.dataset.cell
+  if (!raw) return null
+  const [row, col] = raw.split(',').map(Number)
+  return Number.isInteger(row) && Number.isInteger(col) ? { row, col } : null
 }
 
 export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props) {
@@ -73,6 +81,7 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
   }))
   const displayed = shuffle(source, mulberry32(salt + 1))
   const selectedTile = selected !== null ? (displayed[selected]?.tile ?? null) : null
+  const pendingBlank = game.pending.some((p) => p.blank)
 
   const preview = useMemo(() => {
     if (game.pending.length === 0) return null
@@ -81,21 +90,16 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
 
   const myTurn = game.status === 'active' && game.turn === 0
 
-  const place = (row: number, col: number) => {
+  const toggleSelect = (index: number) => {
+    setSelected(selected === index ? null : index)
+    setMessage('')
+    setConfirmPass(false)
+  }
+
+  const placeTile = (tile: Tile, row: number, col: number) => {
     if (!myTurn || exchangeMode) return
     if (game.board[row][col]) return
-    const existing = game.pending.find((p) => p.row === row && p.col === col)
-    if (existing) {
-      setGame(setPending(game, game.pending.filter((p) => p !== existing)))
-      setMessage('')
-      return
-    }
-    if (selected === null) {
-      setMessage('Tap a tile first.')
-      return
-    }
-    const tile = displayed[selected]?.tile
-    if (!tile) return
+    if (game.pending.some((p) => p.row === row && p.col === col)) return
     const placement: Placement = {
       row,
       col,
@@ -106,6 +110,86 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
     setSelected(null)
     setMessage('')
     setConfirmPass(false)
+  }
+
+  const removePending = (p: Placement) => {
+    setGame(setPending(game, game.pending.filter((x) => !(x.row === p.row && x.col === p.col))))
+    setSelected(null)
+    setMessage('')
+  }
+
+  /** The empty squares a tile can be dropped on right now. */
+  const emptyCells = (): HTMLElement[] =>
+    Array.from(document.querySelectorAll<HTMLElement>('.play-board .db-cell')).filter((el) => {
+      const cell = cellFrom(el)
+      if (!cell) return false
+      if (game.board[cell.row][cell.col]) return false
+      return !game.pending.some((p) => p.row === cell.row && p.col === cell.col)
+    })
+
+  const onRackPointerDown = (event: PointerEvent, displayIndex: number) => {
+    if (!myTurn || exchangeMode) return
+    const tile = displayed[displayIndex]?.tile
+    if (!tile) return
+    startTileGesture({
+      event,
+      ghost: { label: tile.blank ? '?' : tile.letter, blank: !!tile.blank },
+      targets: emptyCells(),
+      onTap: () => toggleSelect(displayIndex),
+      onDrop: (target) => {
+        const cell = cellFrom(target)
+        if (cell) placeTile(tile, cell.row, cell.col)
+      },
+    })
+  }
+
+  const onPendingPointerDown = (event: PointerEvent, p: Placement) => {
+    if (!myTurn || exchangeMode) return
+    const targets = emptyCells()
+    const rackEl = document.querySelector<HTMLElement>('.db-rack')
+    if (rackEl) targets.push(rackEl)
+    startTileGesture({
+      event,
+      ghost: { label: p.letter, blank: !!p.blank },
+      targets,
+      onTap: () => removePending(p),
+      onDrop: (target) => {
+        if (target.hasAttribute('data-rack')) {
+          removePending(p)
+          return
+        }
+        const cell = cellFrom(target)
+        if (!cell) return
+        setGame(
+          setPending(
+            game,
+            game.pending.map((x) =>
+              x.row === p.row && x.col === p.col ? { ...x, row: cell.row, col: cell.col } : x,
+            ),
+          ),
+        )
+        setSelected(null)
+        setMessage('')
+        setConfirmPass(false)
+      },
+    })
+  }
+
+  const place = (row: number, col: number) => {
+    if (tileClicksSuppressed()) return
+    if (!myTurn || exchangeMode) return
+    if (game.board[row][col]) return
+    const existing = game.pending.find((p) => p.row === row && p.col === col)
+    if (existing) {
+      removePending(existing)
+      return
+    }
+    if (selected === null) {
+      setMessage('Tap a tile first.')
+      return
+    }
+    const tile = displayed[selected]?.tile
+    if (tile) placeTile(tile, row, col)
   }
 
   const recall = () => {
@@ -237,7 +321,11 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
               <button
                 type="button"
                 class={classes}
+                data-cell={`${row},${col}`}
                 onClick={() => place(row, col)}
+                onPointerDown={(e) => {
+                  if (placed) onPendingPointerDown(e, placed)
+                }}
                 aria-label={`row ${row + 1} column ${col + 1}${letter ? `, ${letter}${blank ? ' (blank)' : ''}` : premium ? `, ${premiumLabel(premium)}` : ''}`}
               >
                 {letter ? (
@@ -265,10 +353,10 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
             ? preview.ok
               ? `+${preview.total}${preview.bingo ? ' bingo' : ''} — ${preview.words.map((w) => w.word).join(', ')}`
               : preview.error?.message
-            : message || lastLine || 'Tap a tile, then a square.'}
+            : message || lastLine || 'Tap or drag a tile onto a square.'}
       </div>
 
-      <div class="db-rack" role="group" aria-label="Your rack">
+      <div class="db-rack" role="group" aria-label="Your rack" data-rack="">
         {displayed.map(({ tile, index }, i) => (
           <button
             type="button"
@@ -279,7 +367,9 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
             ]
               .filter(Boolean)
               .join(' ')}
-            onClick={() => {
+            onPointerDown={(e) => onRackPointerDown(e, i)}
+            onClick={(e) => {
+              if (e.detail !== 0 && tileClicksSuppressed()) return
               if (exchangeMode) {
                 setExchangeSel((set) => {
                   const next = new Set(set)
@@ -300,10 +390,30 @@ export function Play({ dict, tiers, startGame, fast, onHome, onNewGame }: Props)
         ))}
       </div>
 
-      {selectedTile?.blank && !exchangeMode && (
+      {(selectedTile?.blank || pendingBlank) && !exchangeMode && (
         <label class="db-blank-pick">
           Blank stands for
-          <select value={blankFor} onChange={(e) => setBlankFor((e.target as HTMLSelectElement).value)}>
+          <select
+            value={blankFor}
+            onChange={(e) => {
+              const letter = (e.target as HTMLSelectElement).value
+              setBlankFor(letter)
+              // A blank dropped by dragging never had a turn in the picker.
+              if (selectedTile?.blank || !pendingBlank) return
+              let last = -1
+              game.pending.forEach((p, i) => {
+                if (p.blank) last = i
+              })
+              if (last >= 0) {
+                setGame(
+                  setPending(
+                    game,
+                    game.pending.map((p, i) => (i === last ? { ...p, letter } : p)),
+                  ),
+                )
+              }
+            }}
+          >
             {LETTERS.map((l) => (
               <option value={l}>{l}</option>
             ))}

@@ -156,9 +156,14 @@ export function App() {
         <section class="rules-body">
           <h2>Your turn</h2>
           <p>
-            Tap a tile on your rack, then tap a square on the board. Build a word across or down.
-            The first word must cover the gold middle square. Every word after that must touch a
-            word already on the board.
+            Tap a tile on your rack, then tap a square on the board — or drag the tile into place.
+            Build a word across or down. The first word must cover the gold middle square. Every
+            word after that must touch a word already on the board.
+          </p>
+          <p>
+            A placed tile can be dragged to a different square, or back to the rack. On a long
+            screen, a quick swipe moves the board; rest a finger on a tile for a moment to pick it
+            up instead.
           </p>
           <p>
             When the word looks right, tap <strong>Play word</strong>. The preview above your rack

@@ -53,8 +53,10 @@ square, see the score preview and any friendly rule message, then play the word.
 uses the exact code the server will use.
 
 **M2 — the robot.** New game asks how hard the robot should play, then the whole
-game happens on the phone. Tap-tap is the only interaction: tap a rack tile, tap a
-square, see the words and score before committing. The screen shows both scores,
+game happens on the phone. Tap a rack tile then a square, or drag the tile into
+place; see the words and score before committing. Placed tiles can be dragged to a
+new square or back to the rack. On a scrolling screen a quick swipe pans the board,
+while resting a finger picks a tile up — the same gesture model as the solitaire. The screen shows both scores,
 whose turn it is, the tiles left in the bag, and how many tiles the robot holds —
 never which ones. Shuffle, recall, exchange, pass, blanks, bingo scoring, the last
 move outline, and a calm finish screen are all there. The game, including a

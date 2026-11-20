@@ -91,6 +91,60 @@ async function passTwice(state) {
   await waitForBot(state.version + 2)
 }
 
+async function dragTile(from, to, shot) {
+  const a = await from.boundingBox()
+  const b = await to.boundingBox()
+  if (!a || !b) throw new Error('drag source or target has no box')
+  const sx = a.x + a.width / 2
+  const sy = a.y + a.height / 2
+  const tx = b.x + b.width / 2
+  const ty = b.y + b.height / 2
+  await page.mouse.move(sx, sy)
+  await page.mouse.down()
+  await page.mouse.move(sx + 14, sy + 14, {steps: 4})
+  await page.mouse.move(tx, ty, {steps: 12})
+  const mid = {
+    ghost: await page.locator('.drag-ghost').count(),
+    targets: await page.locator('.db-cell.drag-target').count(),
+    hover: await page.locator('.db-cell.drop-hover, .db-rack.drop-hover').count(),
+  }
+  if (shot) await page.screenshot({path: `${out}/${shot}.png`})
+  await page.mouse.up()
+  return mid
+}
+
+// A real finger swipe, through Chromium's touch pipeline.
+async function swipeUp(locator, distance = 100) {
+  const box = await locator.boundingBox()
+  if (!box) throw new Error('swipe source has no box')
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+  const client = await context.newCDPSession(page)
+  await client.send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y, id: 1}]})
+  for (let i = 1; i <= 8; i++) {
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{x, y: y - (i * distance) / 8, id: 1}],
+    })
+  }
+  await client.send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []})
+  await client.detach()
+}
+
+async function waitPending(count) {
+  await page.waitForFunction(
+    (n) => {
+      try {
+        return (JSON.parse(localStorage.getItem('scrabbleish.game.v1') || 'null')?.pending?.length ?? -1) === n
+      } catch {
+        return false
+      }
+    },
+    count,
+    {timeout: 10000},
+  )
+}
+
 async function layout(label) {
   const size = await page.evaluate(() => ({
     scrollW: document.documentElement.scrollWidth,
@@ -107,8 +161,46 @@ try {
   await page.getByRole('button', {name: 'New game'}).click()
   await pickLevel('Steady')
   await layout('portrait')
+  const premium = (await page.locator('.db-premium').first().innerText()).trim()
+  note(/^×[23] [WL]$/.test(premium), `premium squares read "${premium}"`)
 
-  // --- 2. half-placed word survives a reload ------------------------------
+  // --- 2. drag a rack tile to the board, move it, then drag it back ------
+  const center = page.locator('.db-cell').nth(7 * 15 + 7)
+  const mid = await dragTile(page.locator('.db-tile').first(), center, 'm2-dragging')
+  note(mid.ghost === 1, 'drag: a floating tile follows the pointer')
+  note(mid.targets > 200, `drag: ${mid.targets} empty squares accept the tile`)
+  note(mid.hover === 1, 'drag: the square under the finger is highlighted')
+  await waitPending(1)
+  const dropped = await readState()
+  note(
+    dropped.pending.length === 1 && dropped.pending[0].row === 7 && dropped.pending[0].col === 7,
+    `drag: tile landed on the middle square (${dropped.pending[0]?.letter})`,
+  )
+  note((await page.locator('.db-tile').count()) === 6, 'drag: the rack shows six tiles')
+
+  const beside = page.locator('.db-cell').nth(7 * 15 + 8)
+  await dragTile(page.locator('.db-cell.pending'), beside)
+  await page.waitForFunction(
+    () => {
+      try {
+        const p = JSON.parse(localStorage.getItem('scrabbleish.game.v1') || 'null')?.pending?.[0]
+        return p?.row === 7 && p?.col === 8
+      } catch {
+        return false
+      }
+    },
+    null,
+    {timeout: 10000},
+  )
+  note((await page.locator('.db-cell.pending').count()) === 1, 'drag: a placed tile moved to a neighbouring square')
+
+  const back = await dragTile(page.locator('.db-cell.pending'), page.locator('.db-rack'))
+  note(back.hover === 1, 'drag: the rack lights up as a place to take the tile back')
+  await waitPending(0)
+  note((await page.locator('.db-tile').count()) === 7, 'drag: dropping on the rack returns the tile')
+  await page.waitForTimeout(450)
+
+  // --- 3. half-placed word survives a reload ------------------------------
   await page.locator('.db-tile').first().click()
   await page.locator('.db-cell').nth(7 * 15 + 7).click()
   await page.locator('.db-tile').first().click()
@@ -144,6 +236,18 @@ try {
 
   await page.setViewportSize({width: 915, height: 412})
   await layout('landscape')
+  // A quick vertical swipe over a placed tile pans the screen; it must not
+  // pick the tile up or take it back.
+  await page.evaluate(() => {
+    const play = document.querySelector('.play')
+    if (play) play.scrollTop = 120
+  })
+  const scrollBefore = await page.evaluate(() => document.querySelector('.play')?.scrollTop ?? 0)
+  await swipeUp(page.locator('.db-cell.pending').first())
+  await page.waitForTimeout(80)
+  const scrollAfter = await page.evaluate(() => document.querySelector('.play')?.scrollTop ?? 0)
+  note(scrollAfter > scrollBefore + 20, `touch: swipe panned the screen (${scrollBefore} → ${scrollAfter})`)
+  note((await page.locator('.db-cell.pending').count()) === 2, 'touch: the swipe did not move a placed tile')
   await page.setViewportSize({width: 412, height: 915})
   await page.getByRole('button', {name: 'Recall'}).click()
 

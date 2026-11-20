@@ -67,10 +67,10 @@ export function cellKey(row: number, col: number): string {
 /** Premium summary used by the debug board and later by the real board UI. */
 export function premiumLabel(premium: Premium): string {
   switch (premium) {
-    case 'TW': return '×3 word'
-    case 'DW': return '×2 word'
-    case 'TL': return '×3 letter'
-    case 'DL': return '×2 letter'
+    case 'TW': return '×3 W'
+    case 'DW': return '×2 W'
+    case 'TL': return '×3 L'
+    case 'DL': return '×2 L'
     default: return ''
   }
 }
