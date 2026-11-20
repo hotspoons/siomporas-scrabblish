@@ -10,7 +10,13 @@ popular.txt is the common subset of ENABLE, filtered against Wiktionary's word
 frequency lists by the same repository (25,322 words). It ships alongside
 ENABLE so the robot's easier levels can prefer everyday words.
 
-No changes are made to the words themselves beyond upper-casing and sorting.
+tier-2k.txt and tier-20k.txt are that common set ordered by frequency using
+Peter Norvig's count_1w list (norvig.com/ngrams), then trimmed to the most
+frequent 2,000 and 20,000. The robot's easier levels draw only from these, so
+it plays the words a person would actually say.
+
+No changes are made to the words themselves beyond upper-casing, alphabetising
+dict.txt and popular.txt, and ordering the two tier files by frequency.
 
 Sources:
   https://github.com/dolph/dictionary

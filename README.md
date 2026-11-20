@@ -14,8 +14,8 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # typecheck + production bundle into dist/
 npm run preview    # serve dist/ on :4173
-npm test           # rules/scoring/dictionary/move-generation tests (node --test)
-npm run dict       # rebuild public/dict.txt + public/popular.txt from the source lists
+npm test           # rules, scoring, move generation, robot, and game-state tests
+npm run dict       # rebuild the word lists and frequency tiers from the source lists
 ```
 
 Checks against a running preview or the live site:
@@ -23,7 +23,12 @@ Checks against a running preview or the live site:
 ```bash
 npm run m0 -- --url http://localhost:4173/   # shell installs and opens offline
 npm run m1 -- --url http://localhost:4173/   # board lab plays an engine move, offline too
+npm run m2 -- --url 'http://localhost:4173/?bag=21&fast=1'   # robot game, restart, offline
 ```
+
+`?bag=` and `?fast=` are test conveniences: a smaller tile bag finishes a game
+quickly, and `fast` shortens the robot's thinking pause. They do not change the
+rules or the robot's choices.
 
 ## What exists so far
 
@@ -39,17 +44,45 @@ icons, install and offline support.
 | `dictionary.ts` | Sorted word list with exact lookup and prefix search |
 | `rules.ts` | Move validation, every formed word, scoring, blanks, 50-point bingo |
 | `movegen.ts` | Legal move generation, ranked by score, with blank handling |
-| `dict-load.ts` | Loads the vendored list once (precached, so offline works) |
+| `bot.ts` | The five robot levels, its vocabulary and move choice |
+| `local-game.ts` | One whole off-line game: turns, refills, exchange, finish, storage |
+| `dict-load.ts` | Loads the vendored list and tiers once (precached, so offline works) |
 
 The **Board lab** on the home screen is the manual playground: tap a rack tile, tap a
 square, see the score preview and any friendly rule message, then play the word. It
 uses the exact code the server will use.
 
-### The word list
+**M2 — the robot.** New game asks how hard the robot should play, then the whole
+game happens on the phone. Tap-tap is the only interaction: tap a rack tile, tap a
+square, see the words and score before committing. The screen shows both scores,
+whose turn it is, the tiles left in the bag, and how many tiles the robot holds —
+never which ones. Shuffle, recall, exchange, pass, blanks, bingo scoring, the last
+move outline, and a calm finish screen are all there. The game, including a
+half-placed word, is saved to `localStorage` on every change, so closing the tab or
+restarting the phone resumes exactly where it was. Everything except installing the
+app works offline.
+
+| Level | Name | Vocabulary | Length | Style |
+|---|---|---|---|---|
+| 1 | Gentle | 2,000 common words | 3–5 | sometimes passes or exchanges |
+| 2 | Easy | 2,000 common words | 3–6 | a little longer |
+| 3 | Steady | 20,000 common words | 2–8 | takes good squares now and then |
+| 4 | Strong | full list | any | finds long words and bingos |
+| 5 | Sharp | full list | any | best move it can find, and blocks premiums |
+
+The robot is given only the board, its own rack, and the number of tiles in the
+bag. It never sees the bag's contents or the player's rack, so it cannot cheat.
+Difficulty comes from vocabulary, word length, top-K sampling with a temperature,
+pass/exchange likelihood, bingo permission, and how much it values denying premium
+squares. `src/shared/bot.test.ts` plays seeded games and asserts that the mean score
+rises with each level and that level 5 beats level 1.
+
+### The word lists
 
 `public/dict.txt` is ENABLE (public domain), filtered to the 168,551 words that are
-2–15 letters and playable on the board. `public/popular.txt` is the 25,298-word
-common subset used later for the robot's easier levels. Both are built by
+2–15 letters and playable on the board. `public/tier-2k.txt` and
+`public/tier-20k.txt` are the most frequent 2,000 and 20,000 of the 25,298-word
+common subset, ranked with Peter Norvig's `count_1w`. All are built by
 `scripts/build-dict.mjs` and precached with the app; see `public/dict-LICENSE.txt`.
 
 ## Deploy
